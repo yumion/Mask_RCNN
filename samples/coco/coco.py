@@ -61,7 +61,7 @@ COCO_MODEL_PATH = os.path.join(ROOT_DIR, "mask_rcnn_coco.h5")
 # Directory to save logs and model checkpoints, if not provided
 # through the command line argument --logs
 DEFAULT_LOGS_DIR = os.path.join(ROOT_DIR, "logs")
-DEFAULT_DATASET_YEAR = "2014"
+DEFAULT_DATASET_YEAR = "2017"
 
 ############################################################
 #  Configurations
@@ -422,12 +422,16 @@ if __name__ == '__main__':
     parser.add_argument('--limit', required=False,
                         default=500,
                         metavar="<image count>",
-                        help='Images to use for evaluation (default=500)')
+                        help='Images to use for evaluation (default=500). If you use all images, choice "--limit 0"')
     parser.add_argument('--download', required=False,
                         default=False,
                         metavar="<True|False>",
                         help='Automatically download and unzip MS-COCO files (default=False)',
                         type=bool)
+    parser.add_argument('--eval', required=False,
+                        default="bbox",
+                        metavar="<bbox|segm>",
+                        help='"bbox" or "segm" for bounding box or segmentation evaluation (default=bbox)')
     args = parser.parse_args()
     print("Command: ", args.command)
     print("Model: ", args.model)
@@ -528,7 +532,7 @@ if __name__ == '__main__':
         coco = dataset_val.load_coco(args.dataset, val_type, year=args.year, return_coco=True, auto_download=args.download)
         dataset_val.prepare()
         print("Running COCO evaluation on {} images.".format(args.limit))
-        evaluate_coco(model, dataset_val, coco, "bbox", limit=int(args.limit))
+        evaluate_coco(model, dataset_val, coco, eval_type=args.eval, limit=int(args.limit))
     else:
         print("'{}' is not recognized. "
               "Use 'train' or 'evaluate'".format(args.command))
