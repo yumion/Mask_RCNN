@@ -66,7 +66,7 @@ class_names = ['BG', 'person', 'bicycle', 'car', 'motorcycle', 'airplane',
                'sink', 'refrigerator', 'book', 'clock', 'vase', 'scissors',
                'teddy bear', 'hair drier', 'toothbrush']
 
-filtered_classNames = ['BG', 'bottle', 'cup', 'banana', 'orange', 'remote', 'book', 'cell phone']
+filtered_classNames = ['BG', 'bottle', 'cup', 'banana', 'orange', 'remote', 'cell phone']
 
 
 def calc_center(img):
@@ -79,7 +79,7 @@ def calc_center(img):
 
 cap = RealsenseCapture()
 cap.WIDTH = 1280
-cap.HEIGHT = 960
+cap.HEIGHT = 720
 cap.start()
 
 while True:
@@ -87,6 +87,7 @@ while True:
     ret, images = cap.read()
     rgb_image = images[0]
     depth_image = images[1]
+    print(rgb_image.shape, depth_image.shape)
     # Run detection
     results = model.detect([rgb_image], verbose=1)
     # Visualize results
@@ -102,33 +103,34 @@ while True:
             # Color
             color = colors[i]
             rgb = (round(color[0] * 255), round(color[1] * 255), round(color[2] * 255))
+            font = cv2.FONT_HERSHEY_SIMPLEX
+
             # Bbox
             result_image = visualize.draw_box(result_image, result['rois'][i], rgb)
+
             # Class & Score
-            font = cv2.FONT_HERSHEY_SIMPLEX
             text_top = class_names[result['class_ids'][i]] + ':' + str(result['scores'][i])
             result_image = cv2.putText(result_image, text_top,
                                        (result['rois'][i][1], result['rois'][i][0]),
-                                       font, 0.8, rgb, 2, cv2.LINE_AA)
-            # print(class_names[r['class_ids'][i]])
+                                       font, 0.7, rgb, 1, cv2.LINE_AA)
+
             # Mask
             mask = result['masks'][:, :, i]
             result_image = visualize.apply_mask(result_image, mask, color)
-            # calculate distance
+
+            # Distance
             mask_binary = mask.astype('uint8')
             center_pos = calc_center(mask_binary)
             distance = cap.depth_frame.get_distance(center_pos[0], center_pos[1])
-            text_bottom = 'distance: {:.3f}m'.format(distance)
+            text_bottom = '{:.3f}m'.format(distance)
             result_image = cv2.putText(result_image, text_bottom,
-                                       (result['rois'][i][1], result['rois'][i][2]),
-                                       font, 0.8, rgb, 2, cv2.LINE_AA)
-            print('distance: ', distance)
+                                       (result['rois'][i][1], result['rois'][i][0] - 15),
+                                       font, 0.7, rgb, 1, cv2.LINE_AA)
 
-    # ヒートマップに変換
-    depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(
-        depth_image, alpha=0.08), cv2.COLORMAP_JET)
+            # log
+            print('class: {} | Score: {} | Distance: {}m'.format(class_names[result['class_ids'][i]], result['scores'][i], distance))
 
-    cv2.imshow('Mask R-CNN', np.hstack((result_image, depth_colormap)))
+    cv2.imshow('Mask R-CNN', np.hstack((result_image, depth_image)))
     print('FPS:', 1 / (time.time() - start_time))
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
