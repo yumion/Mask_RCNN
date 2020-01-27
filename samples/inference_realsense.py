@@ -83,8 +83,6 @@ def calc_center(img):
 
 
 cap = RealsenseCapture()
-cap.WIDTH = 1280
-cap.HEIGHT = 720
 cap.start()
 
 while True:
@@ -92,14 +90,16 @@ while True:
     ret, images = cap.read()
     rgb_image = images[0]
     depth_image = images[1]
-    print(rgb_image.shape, depth_image.shape)
+    # print(rgb_image.shape, depth_image.shape)
+    padding_image = np.zeros((960, 1280, 3), np.uint8)
+    padding_image[240:720, 320:960] = rgb_image  # 近距離でも遠くに見えるようにパディングする
     # Run detection
-    results = model.detect([rgb_image], verbose=1)
+    results = model.detect([padding_image], verbose=1)
     # Visualize results
     result = results[0]
 
     N = result['rois'].shape[0]  # 検出数
-    result_image = rgb_image.copy()
+    result_image = padding_image.copy()
     colors = visualize.random_colors(N)
 
     for i in range(N):
@@ -114,27 +114,29 @@ while True:
             result_image = visualize.draw_box(result_image, result['rois'][i], rgb)
 
             # Class & Score
+            print(result['rois'][i])
             text_top = class_names[result['class_ids'][i]] + ':' + str(result['scores'][i])
             result_image = cv2.putText(result_image, text_top,
-                                       (result['rois'][i][1], result['rois'][i][0]),
+                                       (result['rois'][i][1], result['rois'][i][2] + 15),
                                        font, 0.7, rgb, 1, cv2.LINE_AA)
 
             # Mask
             mask = result['masks'][:, :, i]
             result_image = visualize.apply_mask(result_image, mask, color)
-
+            mask = mask[240:720, 320:960]
             # Distance
             mask_binary = mask.astype('uint8')
             center_pos = calc_center(mask_binary)
             distance = cap.depth_frame.get_distance(center_pos[0], center_pos[1])
             text_bottom = '{:.3f}m'.format(distance)
             result_image = cv2.putText(result_image, text_bottom,
-                                       (result['rois'][i][1], result['rois'][i][0] - 15),
+                                       (result['rois'][i][1], result['rois'][i][2] + 15 * 2),
                                        font, 0.7, rgb, 1, cv2.LINE_AA)
 
             # log
             print('class: {} | Score: {} | Distance: {}m'.format(class_names[result['class_ids'][i]], result['scores'][i], distance))
 
+    result_image = result_image[240:720, 320:960]  # paddingを元に戻す
     cv2.imshow('Mask R-CNN', np.hstack((result_image, depth_image)))
     print('FPS:', 1 / (time.time() - start_time))
 
